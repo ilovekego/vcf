@@ -5,27 +5,31 @@ module.exports = async (req, res) => {
   
   await connectDB();
   try {
-    let { name, countryCode, phone } = req.body;
-    if (!name || !countryCode || !phone) {
+    let { name, phone } = req.body;
+    if (!name || !phone) {
       return res.status(400).json({ success: false, error: "All fields are required." });
     }
 
-    // Clean phone number
-    phone = phone.replace(/[\s\-\(\)]/g, '').replace(/^0/, '');
-    const fullPhone = `+${countryCode}${phone}`;
+    // Clean phone number: keep the plus, remove spaces/dashes
+    phone = phone.trim().replace(/[\s\-\(\)]/g, '');
 
-    if (fullPhone.length < 10 || fullPhone.length > 15) {
+    // Ensure it starts with a plus
+    if (!phone.startsWith('+')) {
+      return res.status(400).json({ success: false, error: "Please include the '+' sign and country code (e.g., +254...)." });
+    }
+
+    if (phone.length < 10 || phone.length > 16) {
       return res.status(400).json({ success: false, error: "Invalid phone number length." });
     }
 
     const currentCount = await Contact.countDocuments();
-    if (currentCount >= 800) {
-      return res.status(400).json({ success: false, error: "Batch is full (800/800)." });
+    if (currentCount >= 500) {
+      return res.status(400).json({ success: false, error: "Batch is full (500/500)." });
     }
 
-    await Contact.create({ name: name.trim(), phone: fullPhone });
+    await Contact.create({ name: name.trim(), phone });
     const newCount = currentCount + 1;
-    res.json({ success: true, count: newCount, isFull: newCount >= 800 });
+    res.json({ success: true, count: newCount, isFull: newCount >= 500 });
 
   } catch (err) {
     if (err.code === 11000) {
