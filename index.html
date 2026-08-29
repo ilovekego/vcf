@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community VCF Batch Hub</title>
+  <!-- Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <style>
+    :root {
+      --primary: #075e54;
+      --secondary: #128c7e;
+      --whatsapp: #25d366;
+      --bg: #f0f2f5;
+      --card-bg: #ffffff;
+      --text: #333333;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container { width: 100%; max-width: 450px; }
+    .card { background: var(--card-bg); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); box-sizing: border-box; }
+    
+    h2 { text-align: center; color: var(--primary); margin-top: 0; margin-bottom: 5px; }
+    .subtitle { text-align: center; font-size: 14px; color: #666; margin-bottom: 20px; }
+
+    .progress-box { background: #e4e6eb; border-radius: 10px; height: 14px; width: 100%; overflow: hidden; margin-bottom: 8px; }
+    .progress-fill { background: var(--whatsapp); height: 100%; width: 0%; transition: width 0.4s ease; }
+    .counter-text { text-align: center; font-size: 15px; font-weight: bold; color: var(--primary); margin-bottom: 25px; }
+
+    label { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: #555; }
+    input, select { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccd0d5; border-radius: 8px; box-sizing: border-box; font-size: 15px; outline: none; }
+    
+    .phone-group { display: flex; gap: 8px; }
+    .phone-group select { flex: 0 0 110px; }
+    .hint { font-size: 11px; color: #888; margin-top: 4px; display: block; }
+
+    .btn { width: 100%; border: none; padding: 14px; margin-top: 20px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; color: white; }
+    .btn-submit { background: var(--whatsapp); }
+    .btn-download { background: #007bff; }
+    .btn-wa-group { background: var(--whatsapp); }
+    .btn-share { background: #6c757d; margin-top: 10px; }
+
+    .message { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 500; }
+    .error { color: #dc3545; }
+    .success { color: #28a745; }
+    .action-section { display: none; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="card">
+      <h2><i class="fa-solid fa-address-book"></i> Community VCF Hub</h2>
+      <div class="subtitle">Join the network, save numbers in one click!</div>
+
+      <div class="progress-box">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="counter-text" id="counterText"><i class="fa-solid fa-spinner fa-spin"></i> Loading status...</div>
+
+      <form id="vcfForm">
+        <label for="name"><i class="fa-solid fa-user"></i> Your Full Name</label>
+        <input type="text" id="name" placeholder="e.g. Brian Otieno" required>
+
+        <label for="phone"><i class="fa-solid fa-phone"></i> Phone Number</label>
+        <div class="phone-group">
+          <select id="countryCode">
+            <option value="254">+254 (KE)</option>
+            <option value="255">+255 (TZ)</option>
+            <option value="256">+256 (UG)</option>
+            <option value="250">+250 (RW)</option>
+            <option value="234">+234 (NG)</option>
+          </select>
+          <input type="tel" id="phone" placeholder="712345678" maxlength="10" required>
+        </div>
+        <span class="hint">Type your number without the leading zero</span>
+
+        <button type="submit" id="submitBtn" class="btn btn-submit"><i class="fa-solid fa-user-plus"></i> Join Batch</button>
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <div id="actionContainer" class="action-section">
+        <p style="font-weight: bold; color: var(--primary);" id="statusHeader">Batch Complete (800/800)!</p>
+        <a href="/api/download" class="btn btn-download" id="downloadBtn">
+          <i class="fa-solid fa-download"></i> Download 800 Contacts (.VCF)
+        </a>
+      </div>
+
+      <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        <a href="https://chat.whatsapp.com/YOUR_GROUP_INVITE_CODE_HERE" target="_blank" class="btn btn-wa-group">
+          <i class="fa-brands fa-whatsapp"></i> Join WhatsApp Group
+        </a>
+        <button onclick="shareWebsite()" class="btn btn-share">
+          <i class="fa-solid fa-share-nodes"></i> Share Link to Groups
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        const percentage = Math.min((data.count / data.max) * 100, 100);
+        document.getElementById('progressFill').style.width = `${percentage}%`;
+        document.getElementById('counterText').innerText = `Batch Progress: ${data.count} / ${data.max} Contacts`;
+
+        if (data.isFull) {
+          document.getElementById('vcfForm').style.display = 'none';
+          document.getElementById('actionContainer').style.display = 'block';
+          document.getElementById('statusHeader').innerText = "Batch is Full (800/800)! Download Ready";
+        }
+      } catch (err) {
+        console.error("Could not fetch status", err);
+      }
+    }
+
+    document.getElementById('vcfForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const submitBtn = document.getElementById('submitBtn');
+      const messageDiv = document.getElementById('message');
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+      messageDiv.innerText = "";
+
+      const name = document.getElementById('name').value;
+      const countryCode = document.getElementById('countryCode').value;
+      const phone = document.getElementById('phone').value;
+
+      try {
+        const res = await fetch('/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, countryCode, phone })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Submission failed");
+
+        messageDiv.className = "message success";
+        messageDiv.innerText = "Successfully joined the batch!";
+        document.getElementById('vcfForm').reset();
+        fetchStatus();
+
+        if (data.isFull) {
+          document.getElementById('vcfForm').style.display = 'none';
+          document.getElementById('actionContainer').style.display = 'block';
+        }
+      } catch (err) {
+        messageDiv.className = "message error";
+        messageDiv.innerText = err.message;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fa-solid fa-user-plus"></i> Join Batch';
+      }
+    });
+
+    function shareWebsite() {
+      const siteUrl = window.location.href;
+      const text = encodeURIComponent(`Join our community VCF contact-sharing batch! Add your number here and download 800 contacts instantly when full: ${siteUrl}`);
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+
+    fetchStatus();
+  </script>
+</body>
+</html>
